@@ -3,14 +3,12 @@
 const _ = require("lodash")
 const swagger = require("./petstore.swagger.json")
 
-module.exports.deref = value => {
-  if (_.has(value, "$ref")) return _.cloneDeepWith(_.get(swagger, value.$ref.substr(2).split("/")), module.exports.deref)
+function deref(value) {
+  if (_.has(value, "$ref")) {
+    const derefed = _.get(swagger, value.$ref.substr(2).split("/"))
+    return _.cloneDeepWith(derefed, deref)
+  }
 }
-const derefedSwagger = _.cloneDeepWith(swagger, module.exports.deref)
-// exports.ds = derefedSwagger
-// console.log(derefedSwagger)
-
-const falcorModel = []
 
 function fromJsonSchema(schema) {
   schema = schema || {}
@@ -31,10 +29,9 @@ function fromJsonSchema(schema) {
   }
 }
 
-_(derefedSwagger.paths)
+const falcorModel = _(_.cloneDeepWith(swagger.paths, deref))
   .flatMap((pathItem, path) => _.map(pathItem, (operation, method) => _.assign({path, method}, operation)))
-  // .tap(console.log)
-  .forEach(operation => {
+  .transform((falcorModel, operation) => {
     const pathInModel = operation.path.split("/").slice(1)
     const schema = _.get(operation, "responses.200.schema", {})
     if (operation.method === "get") {
@@ -46,6 +43,6 @@ _(derefedSwagger.paths)
     } else {
       // falcorModel.push(pathInModel)
     }
-  })
+  }, [])
 
 console.log(JSON.stringify(falcorModel, null, 2))
