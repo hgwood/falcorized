@@ -32,11 +32,14 @@ function fromJsonSchema(schema) {
 const falcorModel = _(_.cloneDeepWith(swagger.paths, deref))
   .flatMap((pathItem, path) => _.map(pathItem, (operation, method) => _.assign({path, method}, operation)))
   .transform((falcorModel, operation) => {
-    const pathInModel = operation.path.split("/").slice(1)
+    const uri = operation.path
+    const pathPrefix = _(uri).split("/").slice(1).map(segment => {
+      return segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment 
+    }).value()
     const schema = _.get(operation, "responses.200.schema", {})
     if (operation.method === "get") {
       if (schema) {
-        const paths = _.map(fromJsonSchema(schema), path => [...pathInModel, ...path])
+        const paths = _.map(fromJsonSchema(schema), path => [...pathPrefix, ...path])
           .map(path => _.assign({}, path, {get: true}))
         falcorModel.push(...paths)
       }
