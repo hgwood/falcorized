@@ -1,12 +1,11 @@
 "use strict"
 
 const _ = require("lodash")
-const swagger = require("./petstore.swagger.json")
 
-function deref(value) {
+const deref = swagger => value => {
   if (_.has(value, "$ref")) {
     const derefed = _.get(swagger, value.$ref.substr(2).split("/"))
-    return _.cloneDeepWith(derefed, deref)
+    return _.cloneDeepWith(derefed, deref(swagger))
   }
 }
 
@@ -29,7 +28,7 @@ function fromJsonSchema(schema) {
   }
 }
 
-const falcorModel = _(_.cloneDeepWith(swagger.paths, deref))
+module.exports = swagger => _(_.cloneDeepWith(swagger.paths, deref(swagger)))
   .flatMap((pathItem, path) => _.map(pathItem, (operation, method) => _.assign({path, method}, operation)))
   .transform((falcorModel, operation) => {
     const uri = operation.path
@@ -61,5 +60,4 @@ const falcorModel = _(_.cloneDeepWith(swagger.paths, deref))
       // falcorModel.push(pathInModel)
     }
   }, [])
-
-console.log(JSON.stringify(falcorModel, null, 2))
+  .value()
