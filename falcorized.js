@@ -33,14 +33,28 @@ const falcorModel = _(_.cloneDeepWith(swagger.paths, deref))
   .flatMap((pathItem, path) => _.map(pathItem, (operation, method) => _.assign({path, method}, operation)))
   .transform((falcorModel, operation) => {
     const uri = operation.path
-    const pathPrefix = _(uri).split("/").slice(1).map(segment => {
-      return segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment 
-    }).value()
+    const method = operation.method.toUpperCase()
+    const uriPath = _(uri)
+      .split("/")
+      .slice(1)
+      .map(segment => {
+        return segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment 
+      })
+      .value()
     const schema = _.get(operation, "responses.200.schema", {})
-    if (operation.method === "get") {
+    if (method === "GET") {
       if (schema) {
-        const paths = _.map(fromJsonSchema(schema), path => [...pathPrefix, ...path])
-          .map(path => _.assign({}, path, {get: true}))
+        const paths = _(fromJsonSchema(schema))
+          .map(responsePath => ({
+            uri,
+            method,
+            path: {
+              uriPart: uriPath, 
+              responsePart: responsePath, 
+            },
+            route: [...uriPath, ...responsePath]
+          }))
+          .value()
         falcorModel.push(...paths)
       }
     } else {
