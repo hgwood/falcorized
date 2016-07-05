@@ -1,6 +1,7 @@
 "use strict"
 
 const _ = require("lodash")
+const shortid = require("shortid")
 
 const deref = swagger => value => {
   if (_.has(value, "$ref")) {
@@ -19,7 +20,7 @@ function fromJsonSchema(schema) {
     })
     const additionalProperties = _.map(
       fromJsonSchema(schema.additionalProperties),
-      path => ["{keys}", ...path])
+      path => [`{keys:${shortid.generate()}}`, ...path])
     return [...properties, ...additionalProperties]
   } else if (schema.items) {
     return _.map(fromJsonSchema(schema.items), path => ["{integers}", ...path])
@@ -51,7 +52,7 @@ module.exports = swagger => _(_.cloneDeepWith(swagger.paths, deref(swagger)))
               uriPart: uriPath, 
               responsePart: responsePath, 
             },
-            route: [...uriPath, ...responsePath]
+            route: [...uriPath, ...responsePath],
           }))
           .value()
         falcorModel.push(...paths)
