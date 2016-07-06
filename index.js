@@ -15,10 +15,12 @@ const routes = _.map(routeDefinitions, routeDefinition => ({
     return Promise.all(_.map(expand.preservingShortcuts(pathSet), path => {
       const uri = render(routeDefinition.uri, path)
       const responsePath = render(routeDefinition.path.responsePart, path)
-      console.log("request:", uri)
-      return request({uri, method: "GET", baseUrl: "http://" + swagger.host + swagger.basePath, json: true}).then(response => {
+      const qs = _(routeDefinition.parameters).keyBy("name").mapValues(({name}) => pathSet[name][0]).value()
+      console.log("request:", uri, qs)
+      return request({uri, method: "GET", baseUrl: "http://" + swagger.host + swagger.basePath, json: true, qs}).then(response => {
         console.log("response:", response)
-        return {path: path, value: _.get(response, responsePath)}
+        const value = _.get(response, responsePath)
+        return {path: path, value: value || {$type: "atom", value: response}}
       }).catch(err => {
         console.log(err)
         throw err

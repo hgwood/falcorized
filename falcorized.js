@@ -38,24 +38,33 @@ module.exports = swagger => _(_.cloneDeepWith(swagger.paths, deref(swagger)))
       .split("/")
       .slice(1)
       .map(segment => {
-        return segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment 
+        return segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment
       })
       .value()
+    const parameters = _.get(operation, "parameters", [])
     const schema = _.get(operation, "responses.200.schema", {})
     if (method === "GET") {
+      const preparedParameters = _(parameters)
+        .filter({required: true, type: "string", in: "query"})
+        .map(({name, in: place}) => ({name, pathSegment: `{keys:${name}}`, place}))
+        .value()
+      const pathForParameters = _.map(preparedParameters, "pathSegment")
       if (schema) {
         const paths = _(fromJsonSchema(schema))
           .map(responsePath => ({
             uri,
             method,
             path: {
-              uriPart: uriPath, 
-              responsePart: responsePath, 
+              uriPart: uriPath,
+              responsePart: responsePath,
             },
-            route: [...uriPath, ...responsePath],
+            parameters: preparedParameters,
+            route: [...uriPath, ...pathForParameters, ...responsePath],
           }))
           .value()
         falcorModel.push(...paths)
+      } else {
+        falcorModel.push(uriPath)
       }
     } else {
       // falcorModel.push(pathInModel)
