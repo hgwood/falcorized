@@ -15,7 +15,7 @@ const routes = _.map(routeDefinitions, routeDefinition => ({
     return Promise.all(_.map(expand.preservingShortcuts(pathSet), path => {
       const uri = render(routeDefinition.uri, path)
       const responsePath = render(routeDefinition.path.responsePart, path)
-      const qs = _(routeDefinition.parameters).keyBy("name").mapValues(({name}) => pathSet[name][0]).value()
+      const qs = _(routeDefinition.parameters).keyBy("name").mapValues(({name}) => _.get(pathSet, [name, 0])).compact().value()
       console.log("request:", uri, qs)
       return request({uri, method: "GET", baseUrl: "http://" + swagger.host + swagger.basePath, json: true, qs}).then(response => {
         console.log("response:", response)

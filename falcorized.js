@@ -29,26 +29,31 @@ function fromJsonSchema(schema) {
   }
 }
 
+function fromUri(uri) {
+  return _(uri)
+    .split("/")
+    .slice(1)
+    .map(segment => segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment)
+    .value()
+}
+
+function fromParameters(parameters) {
+  return _(parameters)
+    .filter({required: true, type: "string", in: "query"})
+    .map(({name}) => `{keys:${name}}`)
+    .value()
+}
+
 module.exports = swagger => _(_.cloneDeepWith(swagger.paths, deref(swagger)))
   .flatMap((pathItem, path) => _.map(pathItem, (operation, method) => _.assign({path, method}, operation)))
   .transform((falcorModel, operation) => {
     const uri = operation.path
     const method = operation.method.toUpperCase()
-    const uriPath = _(uri)
-      .split("/")
-      .slice(1)
-      .map(segment => {
-        return segment.startsWith("{") ? `{keys:${segment.substr(1)}` : segment
-      })
-      .value()
+    const uriPath = fromUri(uri)
     const parameters = _.get(operation, "parameters", [])
     const schema = _.get(operation, "responses.200.schema", {})
     if (method === "GET") {
-      const preparedParameters = _(parameters)
-        .filter({required: true, type: "string", in: "query"})
-        .map(({name, in: place}) => ({name, pathSegment: `{keys:${name}}`, place}))
-        .value()
-      const pathForParameters = _.map(preparedParameters, "pathSegment")
+      const pathForParameters = fromParameters(parameters)
       if (schema) {
         const paths = _(fromJsonSchema(schema))
           .map(responsePath => ({
@@ -58,7 +63,7 @@ module.exports = swagger => _(_.cloneDeepWith(swagger.paths, deref(swagger)))
               uriPart: uriPath,
               responsePart: responsePath,
             },
-            parameters: preparedParameters,
+            parameters,
             route: [...uriPath, ...pathForParameters, ...responsePath],
           }))
           .value()
